@@ -1,0 +1,53 @@
+:root {
+  /* palette — taken from the reference artwork */
+  --ink: #081428;
+  --ok: #5bd98c;
+  --warn: #ffc24b;
+  --danger: #ff6b5e;
+
+  --text: #fff;
+  /* B26 WCAG AA >= 4.5:1 contrast */
+  --muted: rgba(255, 255, 255, 0.9);
+  --faint: rgba(255, 255, 255, 0.78);
+  --line: rgba(255, 255, 255, 0.18);
+
+  --font-display: "Manrope Variable", "Manrope", system-ui, sans-serif;
+  --font-body: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+  --r-pill: 999px;
+  --r-card: 24px;
+  --col: 520px;
+  --side: 280px;
+  --wide: 1180px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- themes: set on <html data-theme="…"> (Ocean is default) ---------- */
+:root, :root[data-theme="ocean"] {
+  --amber: #6ee7d8; --orange: #3aa0ff; --ember: #2563eb; --wine: #0a1e3d;
+  --a1: #3fd0c9; --a2: #1769e0; --glow: 23 105 224; --on-light: #08305c;
+  --l1: #5ee0d2; --l2: #2a86f0; --l3: #1349b3; --tint: #c9ecff;
+  --blob1: #9ff5e8; --blob2: #2a86f0; --tint-dark: 10 24 48; --sheet-top: 20 52 96; --sheet-bot: 8 14 30;
+}
+:root[data-theme="sunset"] {
+  --amber: #ffb347; --orange: #ff7a2f; --ember: #ff5233; --wine: #3a0e0c;
+  --a1: #ff9a4a; --a2: #ff4a2c; --glow: 255 74 44; --on-light: #5c1409;
+  --l1: #ffb347; --l2: #ff6a3d; --l3: #e0301e; --tint: #ffd9b8;
+  --blob1: #ffd07a; --blob2: #ff4a2a; --tint-dark: 40 12 16; --sheet-top: 78 28 26; --sheet-bot: 20 8 14;
+}
+:root[data-theme="violet"] {
+  --amber: #5ad8ff; --orange: #8a6bff; --ember: #8a2eff; --wine: #1d0a3f;
+  --a1: #b266ff; --a2: #6a1fe0; --glow: 138 46 255; --on-light: #2a0a5c;
+  --l1: #b266ff; --l2: #8a2eff; --l3: #4b12b8; --tint: #e5ccff;
+  --blob1: #7ee8ff; --blob2: #8a2eff; --tint-dark: 24 12 48; --sheet-top: 52 24 100; --sheet-bot: 14 8 30;
+}
+:root[data-theme="light"] {
+  --amber: #ea580c; --orange: #c2410c; --ember: #9a3412; --wine: #431407;
+  --a1: #f97316; --a2: #c2410c; --glow: 234 88 12; --on-light: #431407;
+  --l1: #fb923c; --l2: #ea580c; --l3: #9a3412; --tint: #fed7aa;
+  --blob1: #fdba74; --blob2: #ea580c; --tint-dark: 35 12 8; --sheet-top: 68 24 16; --sheet-bot: 24 10 8;
+}
