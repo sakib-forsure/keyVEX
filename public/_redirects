@@ -1,0 +1,1 @@
+# SPA fallback routing is configured via wrangler.jsonc (Cloudflare) and netlify.toml (Netlify)
