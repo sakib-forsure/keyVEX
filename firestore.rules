@@ -1,0 +1,163 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Canonical Client-Side Encrypted Data Model (Strict Default-Deny)
+    // ===============================================================
+    //
+    // 1. Collection: users/{userId}
+    //    - Owner-only read/delete/create/update.
+    //    - Fields: email (must match request.auth.token.email, F9), name, meta, updatedAt,
+    //              createdAt (immutable), uid (immutable, matches {userId}), schemaVersion.
+    //
+    // 2. Subcollection: users/{userId}/entries/{entryId}
+    //    - Owner-only read/create/update/delete.
+    //    - Fields: id (required, immutable, matches {entryId}), iv (required), data (required),
+    //              updatedAt, createdAt (immutable), rev (optional int >= 0), ciphertextHash (optional string <= 128).
+    //
+    // 3. Subcollection: users/{userId}/tombstones/{entryId}
+    //    - Owner-only read/create/update/delete (B3).
+    //    - Fields: deletedAt (int), deletedRev (int), baseHash (string <= 128).
+    //
+    // 4. All other collections & unknown subcollections:
+    //    - Strictly denied (`allow read, write: if false;`).
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isVerifiedOrGoogle() {
+      return isAuthenticated() && (
+        request.auth.token.email_verified == true ||
+        request.auth.token.firebase.sign_in_provider == 'google.com' ||
+        request.auth.token.firebase.sign_in_provider == 'password'
+      );
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isTokenMatchingEmail(data) {
+      return !('email' in data) ||
+        data.email == '' ||
+        (isValidEmail(data.email) && data.email == request.auth.token.email);
+    }
+
+    function isValidTimeField(val) {
+      return (val is int && val > 0) ||
+             (val is number && val > 0) ||
+             (val is timestamp);
+    }
+
+    function isValidUserDoc(data, userId) {
+      return data.keys().size() > 0 &&
+        hasOnlyAllowedFields(data, ['email', 'name', 'meta', 'updatedAt', 'createdAt', 'uid', 'schemaVersion']) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 254)) &&
+        isTokenMatchingEmail(data) &&
+        (!('name' in data) || (data.name is string && data.name.size() <= 200)) &&
+        (!('meta' in data) || (data.meta is string && data.meta.size() <= 100000)) &&
+        (!('updatedAt' in data) || isValidTimeField(data.updatedAt)) &&
+        (!('createdAt' in data) || isValidTimeField(data.createdAt)) &&
+        (!('uid' in data) || (data.uid is string && data.uid == userId)) &&
+        (!('schemaVersion' in data) || (data.schemaVersion is int && data.schemaVersion >= 1));
+    }
+
+    function isValidEntryDoc(data, entryId) {
+      return hasRequiredFields(data, ['id', 'iv', 'data']) &&
+        hasOnlyAllowedFields(data, ['id', 'iv', 'data', 'updatedAt', 'createdAt', 'rev', 'ciphertextHash']) &&
+        data.id is string &&
+        data.id == entryId &&
+        data.id.size() > 0 &&
+        data.id.size() <= 128 &&
+        data.iv is string &&
+        data.iv.size() >= 12 &&
+        data.iv.size() <= 64 &&
+        data.data is string &&
+        data.data.size() > 0 &&
+        data.data.size() <= 1048576 &&
+        (!('updatedAt' in data) || isValidTimeField(data.updatedAt)) &&
+        (!('createdAt' in data) || isValidTimeField(data.createdAt)) &&
+        (!('rev' in data) || (data.rev is int && data.rev >= 0)) &&
+        (!('ciphertextHash' in data) || (data.ciphertextHash is string && data.ciphertextHash.size() <= 128));
+    }
+
+    function isValidTombstoneDoc(data) {
+      return hasRequiredFields(data, ['deletedAt', 'deletedRev', 'baseHash']) &&
+        hasOnlyAllowedFields(data, ['deletedAt', 'deletedRev', 'baseHash']) &&
+        data.deletedAt is int &&
+        data.deletedAt > 0 &&
+        data.deletedRev is int &&
+        data.deletedRev >= 1 &&
+        data.baseHash is string &&
+        data.baseHash.size() <= 128;
+    }
+
+    // Global Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow delete: if isOwner(userId);
+      allow create: if isOwner(userId) &&
+                       isVerifiedOrGoogle() &&
+                       isValidUserDoc(request.resource.data, userId);
+      allow update: if isOwner(userId) &&
+                       isVerifiedOrGoogle() &&
+                       isValidUserDoc(request.resource.data, userId) &&
+                       areImmutableFieldsUnchanged(['createdAt', 'uid']);
+
+      match /entries/{entryId} {
+        allow read: if isOwner(userId);
+        allow delete: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isVerifiedOrGoogle() &&
+                         isValidEntryDoc(request.resource.data, entryId);
+        allow update: if isOwner(userId) &&
+                         isVerifiedOrGoogle() &&
+                         isValidEntryDoc(request.resource.data, entryId) &&
+                         areImmutableFieldsUnchanged(['id', 'createdAt']);
+      }
+
+      match /tombstones/{entryId} {
+        allow read: if isOwner(userId);
+        allow delete: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+                                 isVerifiedOrGoogle() &&
+                                 isValidTombstoneDoc(request.resource.data);
+      }
+
+      match /deletionJobs/{jobId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
+      match /auditLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+  }
+}
