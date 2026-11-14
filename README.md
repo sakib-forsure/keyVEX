@@ -7,7 +7,23 @@
 
 `Version 1.0.0 — First Official Release` • `AES-256-GCM` • `PBKDF2-SHA256` • `Cloud Sync` • `Offline-First`
 
+**🌐 Live Demo: [vault.keyvex.workers.dev](https://vault.keyvex.workers.dev)**
+
 </div>
+
+---
+
+## 🚀 Try it
+
+- **Use it now (no install needed):** open [vault.keyvex.workers.dev](https://vault.keyvex.workers.dev) — create an account, set a passkey, and your vault is ready.
+- **Install it as an app (free, no app store):** Android — Chrome → Install app · iPhone — Safari → Share → Add to Home Screen · PC — Chrome/Edge → install icon in the address bar. Works offline after the first visit.
+- **Run it locally:**
+  ```bash
+  npm install
+  cp .env.example .env   # fill in your own Firebase keys
+  npm run dev
+  ```
+  Build for production with `npm run build` (output: `dist/`).
 
 ---
 
