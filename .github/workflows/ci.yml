@@ -1,0 +1,31 @@
+name: KeyVEX CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full test suite (core, server, UI, security & benchmark)
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev

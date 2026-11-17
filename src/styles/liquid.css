@@ -1,0 +1,496 @@
+/* =========================================================================
+   KeyVEX — iOS 26 "Liquid Glass" layer (loads last, wins over older glass rules)
+
+   Recipe (same as the reference .glass-card):
+     translucent fill + light blur · 1px frosted border · soft drop shadow
+     inset specular rim (top / bottom) · gradient hairlines on the top + left edges
+   On top of that, iOS 26 behaviour:
+     light that follows the finger / pointer · gel-like press squash with spring release
+     glass "lens" for the active tab · stretchy glass switch thumb · materialising sheets
+   Colours come from variables, so Dark, Light and System (= whichever the device uses) share one recipe.
+   ========================================================================= */
+
+@property --spec { syntax: "<number>"; inherits: true; initial-value: 0; }
+
+:root {
+  /* real iOS-style spring (linear() easing); older browsers fall back to an overshooting bezier */
+  --liquid: cubic-bezier(0.34, 1.5, 0.5, 1);
+  --liquid-soft: cubic-bezier(0.22, 1.25, 0.4, 1);
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    --liquid: linear(0, 0.006, 0.025 2.2%, 0.101 4.8%, 0.539 12.3%, 0.721 15.6%, 0.849 18.9%, 0.937 22.4%, 1.0 26.2%, 1.05 30%, 1.08 34%, 1.092 38%, 1.087 43%, 1.065 49%, 1.03 56%, 1.006 63%, 0.994 71%, 0.992 78%, 0.998 88%, 1);
+    --liquid-soft: linear(0, 0.012 2.6%, 0.1 6.4%, 0.45 14%, 0.72 20.6%, 0.9 27%, 1.01 34%, 1.04 41%, 1.03 49%, 1.01 58%, 0.998 70%, 1);
+  }
+}
+
+/* ---------- theme variables ---------- */
+:root, :root[data-theme="dark"] {
+  --g-fill: rgb(255 255 255 / 0.11);
+  --g-fill-hi: rgb(255 255 255 / 0.2);
+  --g-tint: rgb(98 192 255 / 0.05);
+  --g-border: rgb(255 255 255 / 0.3);
+  --g-line: rgb(255 255 255 / 0.8);
+  --g-rim: rgb(255 255 255 / 0.5);
+  --g-rim-low: rgb(255 255 255 / 0.1);
+  --g-shadow: 0 8px 32px rgb(2 8 40 / 0.32);
+  --g-blur: 14px;
+  --g-sat: 180%;
+  --g-lens: linear-gradient(160deg, rgb(255 255 255 / 0.42), rgb(255 255 255 / 0.12) 55%, rgb(98 192 255 / 0.2));
+  --g-lens-ink: #fff;
+  --g-water: linear-gradient(180deg, transparent 55%, rgb(55 129 252 / 0.1));
+  --g-glint: 0.32;
+}
+:root[data-theme="light"] {
+  --g-fill: rgb(255 255 255 / 0.4);
+  --g-fill-hi: rgb(255 255 255 / 0.62);
+  --g-tint: rgb(98 192 255 / 0.08);
+  --g-border: rgb(255 255 255 / 0.85);
+  --g-line: rgb(255 255 255 / 1);
+  --g-rim: rgb(255 255 255 / 0.95);
+  --g-rim-low: rgb(55 129 252 / 0.14);
+  --g-shadow: 0 14px 44px rgb(25 81 252 / 0.26), inset 0 0 30px rgb(255 255 255 / 0.5);
+  --g-blur: 16px;
+  --g-sat: 170%;
+  --g-lens: linear-gradient(160deg, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0.5) 60%, rgb(98 192 255 / 0.3));
+  --g-lens-ink: #0b2cb1;
+  --g-water: radial-gradient(120% 90% at 14% 0%, rgb(255 255 255 / 0.85), transparent 56%), linear-gradient(180deg, transparent 42%, rgb(98 192 255 / 0.3));
+  --g-glint: 0.95;
+}
+
+/* ---------- the glass surface ---------- */
+:root[data-theme] .glass {
+  background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.1), transparent 45%), var(--g-tint), var(--g-fill);
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)); backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat));
+  border: 1px solid var(--g-border);
+  box-shadow: var(--g-shadow), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low), inset 0 0 22px rgb(255 255 255 / 0.05);
+  transition: transform 0.55s var(--liquid), background 0.3s, border-color 0.3s, box-shadow 0.4s, --spec 0.4s;
+  --spec: 0;
+}
+
+/* top + left hairlines (from the reference card) and a faint bottom one for depth */
+:root[data-theme] .glass::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 1; transition: none;
+  background:
+    radial-gradient(46px 18px at 9% 0, rgb(255 255 255 / var(--g-glint)), transparent) 0 0 / 100% 100% no-repeat,
+    radial-gradient(46px 18px at 91% 0, rgb(255 255 255 / calc(var(--g-glint) * 0.7)), transparent) 0 0 / 100% 100% no-repeat,
+    linear-gradient(90deg, transparent, var(--g-line), transparent) top / 100% 1px no-repeat,
+    linear-gradient(180deg, var(--g-line), transparent, rgb(255 255 255 / 0.3)) left / 1px 100% no-repeat,
+    linear-gradient(270deg, transparent, rgb(255 255 255 / 0.28), transparent) bottom / 100% 1px no-repeat;
+}
+/* specular light that tracks the pointer / finger + a slow sweeping glint */
+:root[data-theme] .glass::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  background:
+    radial-gradient(200px circle at var(--px, 50%) var(--py, 0%), rgb(255 255 255 / calc(var(--spec) * 0.5)), transparent 68%),
+    linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.16) 50%, transparent 62%);
+  background-size: 100% 100%, 260% 100%;
+  background-position: 0 0, 160% 0;
+  background-repeat: no-repeat;
+  animation: liquid-sheen 10s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -0.9s);
+  mix-blend-mode: normal;
+}
+:root[data-theme="light"] .glass::after {
+  background-image:
+    radial-gradient(200px circle at var(--px, 50%) var(--py, 0%), rgb(255 255 255 / calc(var(--spec) * 0.95)), transparent 68%),
+    linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.7) 50%, transparent 62%);
+}
+:root[data-theme] .glass:hover { --spec: 0.55; }
+:root[data-theme] .glass.is-pressed { --spec: 1; }
+@keyframes liquid-sheen { 0%, 55% { background-position: 0 0, 160% 0; } 100% { background-position: 0 0, -60% 0; } }
+
+/* cards: lift on hover, gel-squash on press, spring back */
+:root[data-theme] .entry:hover, :root[data-theme] button.tile:hover, :root[data-theme] .setting:hover {
+  transform: translateY(-3px) scale(1.012);
+  background: linear-gradient(150deg, rgb(255 255 255 / 0.16), transparent 45%), var(--g-tint), var(--g-fill-hi);
+  border-color: var(--g-border);
+  box-shadow: 0 18px 44px rgb(var(--glow) / 0.28), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low), inset 0 0 26px rgb(255 255 255 / 0.08);
+}
+:root[data-theme] .entry:active, :root[data-theme] button.tile:active, :root[data-theme] .setting:active {
+  transform: scale(0.972, 0.962); transition-duration: 0.14s, 0.2s, 0.2s, 0.2s, 0.2s; transition-timing-function: ease-out;
+}
+
+/* ---------- floating bars: sidebar + dock ---------- */
+:root[data-theme] .sidebar, :root[data-theme] .dock {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.05)), rgb(var(--pill-bg) / 0.32), var(--g-fill);
+  -webkit-backdrop-filter: blur(22px) saturate(200%); backdrop-filter: blur(22px) saturate(200%);
+  border: 1px solid var(--g-border);
+  box-shadow: var(--g-shadow), 0 0 0 1px rgb(255 255 255 / 0.05), inset 0 1.5px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low);
+}
+:root[data-theme="light"] .sidebar, :root[data-theme="light"] .dock { background: linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0.3)); }
+
+/* the selected tab is a clear glass lens (iOS 26 tab bar), not a solid pill */
+:root[data-theme] .dock-btn.on, :root[data-theme] .nav-item.on {
+  background: var(--g-lens); color: var(--g-lens-ink);
+  -webkit-backdrop-filter: blur(6px) saturate(200%); backdrop-filter: blur(6px) saturate(200%);
+  border: 1px solid rgb(255 255 255 / 0.55);
+  box-shadow: 0 8px 22px rgb(var(--glow) / 0.4), inset 0 1.5px 0 rgb(255 255 255 / 0.85), inset 0 -8px 14px rgb(98 192 255 / 0.22), inset 1px 0 0 rgb(255 255 255 / 0.35);
+}
+:root[data-theme] .nav-item.on .n { background: rgb(255 255 255 / 0.3); color: inherit; }
+:root[data-theme="light"] .nav-item.on .n { background: rgb(255 255 255 / 0.9); color: #1951fc; }
+:root[data-theme] .dock-btn, :root[data-theme] .nav-item { transition: background 0.35s, color 0.3s, transform 0.5s var(--liquid), box-shadow 0.35s; }
+:root[data-theme] .dock-btn:active, :root[data-theme] .nav-item:active { transform: scale(0.88); transition-duration: 0.12s; transition-timing-function: ease-out; }
+:root[data-theme] .dock-btn.on { transform: scale(1.06); }
+:root[data-theme] .dock-btn.on:active { transform: scale(0.94); }
+
+/* ---------- buttons ---------- */
+:root[data-theme] .btn { transition: transform 0.5s var(--liquid), box-shadow 0.3s, filter 0.25s, background 0.3s; }
+:root[data-theme] .btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.015); }
+:root[data-theme] .btn:active:not(:disabled) { transform: scale(0.955, 0.93); transition-duration: 0.12s; transition-timing-function: ease-out; }
+:root[data-theme] .btn.glass, :root[data-theme] .icon-btn {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.18), transparent 60%), var(--g-fill);
+  border: 1px solid var(--g-border);
+  -webkit-backdrop-filter: blur(10px) saturate(180%); backdrop-filter: blur(10px) saturate(180%);
+  box-shadow: 0 4px 14px rgb(2 8 40 / 0.14), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low);
+}
+:root[data-theme] .btn.glass:hover, :root[data-theme] .icon-btn:hover { background: linear-gradient(160deg, rgb(255 255 255 / 0.26), transparent 60%), var(--g-fill-hi); }
+:root[data-theme] .icon-btn { transition: transform 0.5s var(--liquid), background 0.25s; }
+:root[data-theme] .icon-btn:hover { transform: scale(1.1); }
+:root[data-theme] .icon-btn:active { transform: scale(0.86); transition-duration: 0.1s; }
+/* tinted glass primary: glossy dome + inner glow */
+:root[data-theme] .btn.primary {
+  background: radial-gradient(120% 90% at 50% 0%, rgb(255 255 255 / 0.5), transparent 55%), linear-gradient(180deg, #62c0ff, #3781fc 48%, #1951fc);
+  border-color: rgb(255 255 255 / 0.5);
+  box-shadow: 0 10px 26px rgb(var(--glow) / 0.45), inset 0 1.5px 0 rgb(255 255 255 / 0.7), inset 0 -9px 16px rgb(3 25 91 / 0.3), inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+
+/* ---------- fields, chips, segmented control ---------- */
+:root[data-theme] .control, :root[data-theme] .seg, :root[data-theme] .notice {
+  background: rgb(var(--field) / 0.3);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--g-border);
+  box-shadow: inset 0 1px 2px rgb(2 8 40 / 0.14), inset 0 -1px 0 var(--g-rim-low);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.35s, transform 0.5s var(--liquid);
+}
+:root[data-theme="light"] .control, :root[data-theme="light"] .seg, :root[data-theme="light"] .notice { background: rgb(255 255 255 / 0.5); box-shadow: inset 0 1px 2px rgb(25 81 252 / 0.1), inset 0 -1px 0 rgb(255 255 255 / 0.9); }
+:root[data-theme] .control:focus-within { transform: scale(1.012); box-shadow: 0 0 0 4px rgb(55 129 252 / 0.26), 0 10px 28px rgb(var(--glow) / 0.28), inset 0 1px 2px rgb(2 8 40 / 0.1); }
+:root[data-theme] .chip-toggle, :root[data-theme] .cat, :root[data-theme] .swatch, :root[data-theme] .choice {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.16), transparent 60%), var(--g-fill);
+  border: 1px solid var(--g-border);
+  box-shadow: inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low);
+  transition: transform 0.5s var(--liquid), background 0.3s, color 0.3s, box-shadow 0.3s;
+}
+:root[data-theme] .chip-toggle:active, :root[data-theme] .cat:active, :root[data-theme] .swatch:active, :root[data-theme] .choice:active { transform: scale(0.92); transition-duration: 0.1s; }
+:root[data-theme] .chip-toggle.on, :root[data-theme] .cat.on, :root[data-theme] .swatch.on, :root[data-theme] .choice.on, :root[data-theme] .seg button.on {
+  background: var(--g-lens); color: var(--g-lens-ink); border-color: rgb(255 255 255 / 0.6);
+  box-shadow: 0 6px 18px rgb(var(--glow) / 0.4), inset 0 1.5px 0 rgb(255 255 255 / 0.85), inset 0 -6px 12px rgb(98 192 255 / 0.22);
+}
+:root[data-theme] .choice.on .sub { color: inherit; opacity: 0.8; }
+:root[data-theme] .seg button { transition: background 0.35s, color 0.25s, box-shadow 0.35s, transform 0.5s var(--liquid); }
+:root[data-theme] .seg button.on { transform: scale(1.03); }
+
+/* ---------- glass switch (thumb stretches while pressed, like iOS 26) ---------- */
+:root[data-theme] .switch .track { background: rgb(255 255 255 / 0.2); box-shadow: inset 0 1px 3px rgb(2 8 40 / 0.3), inset 0 -1px 0 rgb(255 255 255 / 0.15); transition: background 0.35s; }
+:root[data-theme="light"] .switch .track { background: rgb(11 44 177 / 0.2); }
+:root[data-theme] .switch .track::after {
+  width: 24px; height: 22px; border-radius: 99px; top: 3px; left: 3px;
+  background: linear-gradient(180deg, #fff, #e6f1ff); border: 1px solid rgb(255 255 255 / 0.9);
+  box-shadow: 0 3px 8px rgb(2 8 40 / 0.35), inset 0 -2px 3px rgb(98 192 255 / 0.3);
+  transition: transform 0.55s var(--liquid), width 0.3s var(--liquid-soft);
+}
+:root[data-theme] .switch input:checked + .track { background: linear-gradient(180deg, #62c0ff, #1951fc); }
+:root[data-theme] .switch input:checked + .track::after { transform: translateX(20px); }
+:root[data-theme] .switch:active .track::after { width: 32px; }
+:root[data-theme] .switch:active input:checked + .track::after { transform: translateX(12px); }
+
+/* ---------- sheets & modals materialise out of the page ---------- */
+:root[data-theme] .backdrop { background: rgb(2 8 30 / 0.22); -webkit-backdrop-filter: blur(5px) saturate(120%); backdrop-filter: blur(5px) saturate(120%); animation: fade 0.45s both; }
+:root[data-theme="light"] .backdrop { background: rgb(3 25 91 / 0.1); }
+:root[data-theme] .sheet {
+  border: 1px solid var(--g-border); border-bottom: 0;
+  -webkit-backdrop-filter: blur(30px) saturate(200%); backdrop-filter: blur(30px) saturate(200%);
+  box-shadow: 0 -14px 60px rgb(2 8 40 / 0.34), inset 0 1.5px 0 var(--g-rim), inset 1px 0 0 rgb(255 255 255 / 0.18), inset -1px 0 0 rgb(255 255 255 / 0.08);
+  animation: liquid-sheet-in 0.7s var(--liquid-soft) both;
+  transform-origin: 50% 100%;
+}
+:root[data-theme] .leaving .backdrop { animation: fade-out 0.3s both; }
+:root[data-theme] .leaving .sheet { animation: liquid-sheet-out 0.3s cubic-bezier(0.5, 0, 0.75, 0) both; }
+@keyframes liquid-sheet-in { from { transform: translateY(100%) scale(0.96); opacity: 0.6; } }
+@keyframes liquid-sheet-out { to { transform: translateY(100%) scale(0.97); opacity: 0.4; } }
+@media (min-width: 640px) {
+  :root[data-theme] .sheet { border-bottom: 1px solid var(--g-border); animation-name: liquid-modal-in; transform-origin: 50% 55%; box-shadow: 0 30px 80px rgb(2 8 40 / 0.4), inset 0 1.5px 0 var(--g-rim), inset 1px 0 0 rgb(255 255 255 / 0.18); }
+  :root[data-theme] .leaving .sheet { animation-name: liquid-modal-out; }
+}
+@keyframes liquid-modal-in { from { transform: translateY(24px) scale(0.86); opacity: 0; filter: blur(8px); } 60% { filter: blur(0); } }
+@keyframes liquid-modal-out { to { transform: translateY(10px) scale(0.94); opacity: 0; filter: blur(4px); } }
+
+/* ---------- toast ---------- */
+:root[data-theme] .toast {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.2), transparent 60%), var(--g-fill);
+  -webkit-backdrop-filter: blur(20px) saturate(190%); backdrop-filter: blur(20px) saturate(190%);
+  border: 1px solid var(--g-border);
+  box-shadow: var(--g-shadow), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low);
+  transform: translate(-50%, 28px) scale(0.8); transition: transform 0.65s var(--liquid), opacity 0.25s;
+}
+:root[data-theme] .toast.show { transform: translate(-50%, 0) scale(1); }
+:root[data-theme="light"] .toast { background: rgb(255 255 255 / 0.7); }
+
+/* entries arrive like droplets */
+:root[data-theme] .entries.enter .entry { animation: liquid-drop 0.8s var(--liquid-soft) calc(min(var(--i), 12) * 45ms + 120ms) both; }
+@keyframes liquid-drop { from { opacity: 0; transform: translateY(22px) scale(0.94); } }
+
+/* ---------- theme switch: colours cross-fade instead of snapping ---------- */
+:root.theme-fade, :root.theme-fade *, :root.theme-fade *::before, :root.theme-fade *::after {
+  transition-property: background-color, background-image, color, border-color, box-shadow, fill, stroke, opacity !important;
+  transition-duration: 0.5s !important; transition-timing-function: ease !important;
+}
+
+/* ---------- theme picker: System / Dark / Light ---------- */
+.swatch[data-swatch="system"] i { background: linear-gradient(115deg, #03195b 0 50%, #cbe9fd 50% 100%); }
+.swatch i { transition: transform 0.5s var(--liquid); }
+.swatch.on i { transform: scale(1.12) rotate(-12deg); }
+
+/* ---------- accessibility / low power ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme] .glass::after { animation: none !important; }
+  :root[data-theme] .sheet, :root[data-theme] .leaving .sheet { animation-duration: 0.01ms !important; }
+  :root[data-theme] .entries.enter .entry { animation: none !important; }
+  :root.theme-fade, :root.theme-fade * { transition-duration: 0.01ms !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme] .glass, :root[data-theme] .sheet, :root[data-theme] .sidebar, :root[data-theme] .dock, :root[data-theme] .toast { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--sheet-bot) / 0.92); }
+  :root[data-theme="light"] .glass, :root[data-theme="light"] .sheet, :root[data-theme="light"] .sidebar, :root[data-theme="light"] .dock, :root[data-theme="light"] .toast { background: rgb(240 248 255 / 0.96); }
+}
+/* browsers without backdrop-filter: make the pane opaque enough to read */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root[data-theme] .glass, :root[data-theme] .sheet, :root[data-theme] .sidebar, :root[data-theme] .dock { background: rgb(var(--sheet-bot) / 0.9); }
+  :root[data-theme="light"] .glass, :root[data-theme="light"] .sheet, :root[data-theme="light"] .sidebar, :root[data-theme="light"] .dock { background: rgb(240 248 255 / 0.94); }
+}
+
+
+/* =========================================================================
+   Background: stacked glossy "water-glass" capsules (from the colour-gradient reference)
+   #03195b  #0b2cb1  #1951fc  #3781fc  #62c0ff  #cbe9fd — each pill = gradient body, bright rim, inner glow, corner glints
+   ========================================================================= */
+.capsule {
+  --ca: #1951fc; --cb: #0b2cb1; --cg: rgb(25 81 252 / 0.45);
+  background: radial-gradient(130% 120% at 22% 0%, rgb(255 255 255 / 0.4), transparent 52%), linear-gradient(180deg, var(--ca), var(--cb));
+  border: 1px solid rgb(255 255 255 / 0.38);
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.65), inset 0 -18px 36px var(--cg), inset 0 0 0 1px rgb(255 255 255 / 0.06), 0 30px 80px var(--cg);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.capsule::before, .capsule::after { content: ""; position: absolute; pointer-events: none; }
+.capsule::before { left: 5%; top: 5%; width: 38%; height: 34%; border-radius: 999px;
+  background: radial-gradient(ellipse at 25% 30%, rgb(255 255 255 / 0.75), transparent 68%); filter: blur(1.5px); }
+.capsule::after { right: 2.5%; top: 9%; width: 13%; height: 82%; border-radius: 0 999px 999px 0;
+  border-right: 2px solid rgb(255 255 255 / 0.5); border-top: 1px solid rgb(255 255 255 / 0.3); filter: blur(0.5px); }
+:root[data-theme] .c1 { --ca: #1951fc; --cb: #03195b; --cg: rgb(11 44 177 / 0.55); left: -16vmax; top: 8vh; opacity: 0.8; }
+:root[data-theme] .c4 { --ca: #3781fc; --cb: #0b2cb1; --cg: rgb(25 81 252 / 0.5); width: min(44vmax, 500px); height: min(16vmax, 180px); left: -9vmax; top: calc(8vh + min(8vmax, 92px)); transform: rotate(-24deg); animation: float-b 23s ease-in-out infinite alternate; opacity: 0.72; }
+:root[data-theme] .c2 { --ca: #62c0ff; --cb: #1951fc; --cg: rgb(55 129 252 / 0.5); right: -16vmax; bottom: 20vh; opacity: 0.7; }
+:root[data-theme] .c5 { --ca: #cbe9fd; --cb: #3781fc; --cg: rgb(98 192 255 / 0.55); width: min(38vmax, 420px); height: min(14vmax, 160px); right: -11vmax; bottom: calc(20vh - min(7vmax, 80px)); transform: rotate(-24deg); animation: float-a 27s ease-in-out infinite alternate-reverse; opacity: 0.66; }
+:root[data-theme] .c3 { --ca: #cbe9fd; --cb: #62c0ff; --cg: rgb(98 192 255 / 0.5); opacity: 0.5; }
+.c4, .c5 { position: absolute; border-radius: 999px; pointer-events: none; will-change: transform; }
+
+/* LIGHT: bright sky-water background, white-glass capsules with luminous cyan inner glow */
+:root[data-theme="light"] .bg {
+  background:
+    radial-gradient(85% 50% at 12% 0%, #ffffff, transparent 62%),
+    radial-gradient(75% 48% at 92% 100%, rgb(98 192 255 / 0.85), transparent 66%),
+    linear-gradient(180deg, #eef9ff 0%, #cbe9fd 34%, #9fd3ff 70%, #62c0ff 100%);
+}
+:root[data-theme="light"] .bg::after { background: linear-gradient(180deg, rgb(255 255 255 / 0.28), transparent 55%, rgb(55 129 252 / 0.1)); }
+:root[data-theme="light"] body[data-screen="vault"] .bg::after { opacity: 1; }
+:root[data-theme="light"] .blob { opacity: 0.55; }
+:root[data-theme="light"] .capsule {
+  border-color: rgb(255 255 255 / 0.85);
+  background: radial-gradient(130% 120% at 22% 0%, rgb(255 255 255 / 0.9), transparent 55%), linear-gradient(180deg, var(--ca), var(--cb));
+  box-shadow: inset 0 2px 0 #fff, inset 0 -18px 36px var(--cg), inset 0 0 26px rgb(255 255 255 / 0.5), 0 28px 70px rgb(55 129 252 / 0.3);
+}
+:root[data-theme="light"] .c1 { --ca: #9fd3ff; --cb: #3781fc; opacity: 0.8; }
+:root[data-theme="light"] .c4 { --ca: #cbe9fd; --cb: #62c0ff; opacity: 0.85; }
+:root[data-theme="light"] .c2 { --ca: #ffffff; --cb: #62c0ff; opacity: 0.85; }
+:root[data-theme="light"] .c5 { --ca: #ffffff; --cb: #9fd3ff; opacity: 0.85; }
+:root[data-theme="light"] .c3 { --ca: #ffffff; --cb: #cbe9fd; opacity: 0.85; }
+:root[data-theme="light"] .capsule::after { border-right-color: rgb(255 255 255 / 0.95); }
+@media (prefers-reduced-motion: reduce) { .c4, .c5 { animation: none !important; } }
+
+/* =========================================================================
+   WATER pass: glass behaves like a thin film of water — caustic light drifting inside, a meniscus edge,
+   ripples where you touch, and calmer, smoother easing (no jittery overshoot).
+   ========================================================================= */
+:root { --liquid-soft: cubic-bezier(0.16, 1, 0.3, 1); }
+@supports (transition-timing-function: linear(0, 1)) {
+  :root {
+    /* gentle spring: ~3% overshoot, long settle */
+    --liquid: linear(0, 0.08 4%, 0.32 10%, 0.62 17%, 0.84 25%, 0.96 34%, 1.025 44%, 1.03 52%, 1.016 62%, 1.005 74%, 1);
+  }
+}
+
+:root[data-theme] .glass {
+  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(calc(var(--g-sat) + 20%)) brightness(1.07);
+  backdrop-filter: blur(var(--g-blur)) saturate(calc(var(--g-sat) + 20%)) brightness(1.07);
+  box-shadow: var(--g-shadow), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low), inset 0 0 22px rgb(255 255 255 / 0.06),
+    inset 0 -7px 16px rgb(98 192 255 / 0.14), inset 0 0 0 1px rgb(255 255 255 / 0.05);
+  transform: translateZ(0);
+}
+/* caustics: two soft pools of light slide slowly against each other, plus the glint sweep */
+:root[data-theme] .glass::after {
+  background-image:
+    radial-gradient(200px circle at var(--px, 50%) var(--py, 0%), rgb(255 255 255 / calc(var(--spec) * 0.5)), transparent 68%),
+    radial-gradient(60% 46% at 50% 50%, rgb(255 255 255 / 0.11), transparent 72%),
+    radial-gradient(52% 42% at 50% 50%, rgb(98 192 255 / 0.14), transparent 72%),
+    linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.15) 50%, transparent 62%);
+  background-size: 100% 100%, 170% 170%, 170% 170%, 260% 100%;
+  background-position: 0 0, 0% 0%, 100% 100%, 160% 0;
+  background-repeat: no-repeat;
+  animation: water-flow 20s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -1.3s);
+}
+:root[data-theme="light"] .glass::after {
+  background-image:
+    radial-gradient(200px circle at var(--px, 50%) var(--py, 0%), rgb(255 255 255 / calc(var(--spec) * 0.95)), transparent 68%),
+    radial-gradient(60% 46% at 50% 50%, rgb(255 255 255 / 0.5), transparent 72%),
+    radial-gradient(52% 42% at 50% 50%, rgb(98 192 255 / 0.28), transparent 72%),
+    linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.7) 50%, transparent 62%);
+}
+@keyframes water-flow {
+  0%   { background-position: 0 0, 0% 0%,    100% 100%, 160% 0; }
+  50%  { background-position: 0 0, 100% 55%, 0% 35%,    160% 0; }
+  100% { background-position: 0 0, 0% 0%,    100% 100%, -60% 0; }
+}
+/* long lists: only the hovered row flows (hundreds of animating backdrops would cost battery) */
+:root[data-theme] .entry::after { animation-play-state: paused; }
+:root[data-theme] .entry:hover::after { animation-play-state: running; }
+
+/* smoother, calmer motion */
+:root[data-theme] .entry, :root[data-theme] .tile, :root[data-theme] .setting { transition-duration: 0.6s, 0.35s, 0.35s, 0.45s, 0.35s; transition-timing-function: var(--liquid-soft); }
+:root[data-theme] .entry:hover, :root[data-theme] button.tile:hover, :root[data-theme] .setting:hover { transform: translateY(-2px) scale(1.01); }
+:root[data-theme] .btn:hover:not(:disabled) { transform: translateY(-1px) scale(1.01); }
+:root[data-theme] .sheet { animation-duration: 0.75s; animation-timing-function: var(--liquid-soft); }
+:root[data-theme] .backdrop { animation-duration: 0.6s; }
+:root[data-theme] .toast { transition: transform 0.7s var(--liquid-soft), opacity 0.35s; }
+:root.theme-fade, :root.theme-fade *, :root.theme-fade *::before, :root.theme-fade *::after { transition-duration: 0.7s !important; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important; }
+/* background pills drift slower and with a soft bob */
+.capsule { animation-duration: 34s; animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95); }
+.bg::before { animation-duration: 70s; }
+
+/* ---------- water ripples (spawned at the touch point by main.js) ---------- */
+:is(.dock-btn, .nav-item, .chip-toggle, .cat, .icon-btn, .round, .seg button, .swatch, .choice, .promo, .dock-add) { position: relative; }
+.ripple-wrap { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; z-index: 1; }
+.ripple, .ripple::after {
+  position: absolute; left: var(--rx); top: var(--ry); width: var(--rs); height: var(--rs); margin: calc(var(--rs) / -2) 0 0 calc(var(--rs) / -2);
+  border-radius: 50%; transform: scale(0); opacity: 1; will-change: transform, opacity;
+  background: radial-gradient(circle, transparent 48%, rgb(255 255 255 / 0.5) 56%, rgb(255 255 255 / 0.14) 66%, transparent 74%);
+  animation: ripple 1s cubic-bezier(0.2, 0.65, 0.3, 1) forwards;
+}
+.ripple::after { content: ""; left: 50%; top: 50%; margin: calc(var(--rs) / -2) 0 0 calc(var(--rs) / -2); animation-delay: 0.14s; opacity: 0; animation-fill-mode: both; transform: scale(0); width: var(--rs); height: var(--rs); }
+:root[data-theme="light"] .ripple, :root[data-theme="light"] .ripple::after { background: radial-gradient(circle, transparent 48%, rgb(255 255 255 / 0.95) 56%, rgb(98 192 255 / 0.25) 66%, transparent 74%); }
+@keyframes ripple { 0% { transform: scale(0); opacity: 0.9; } 70% { opacity: 0.4; } 100% { transform: scale(1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ripple-wrap { display: none; } :root[data-theme] .glass::after { animation: none !important; } }
+
+/* =========================================================================
+   PERFORMANCE pass (wins over everything above)
+   Real cost of "glass" is backdrop-filter + anything that repaints every frame. So:
+   - blur only on a few big surfaces (sidebar, dock, sheet, toast, auth card); cards use a plain translucent fill
+   - NO continuously animated gradients / filters / blend modes, NO cursor spotlight
+   - only transform / opacity are animated (GPU-composited)
+   ========================================================================= */
+/* cursor "white shade": gone */
+:root[data-theme] .glass::after { background: linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.1) 50%, transparent 62%); background-size: 100% 100%; background-position: 0 0; animation: none !important; }
+:root[data-theme="light"] .glass::after { background-image: linear-gradient(108deg, transparent 38%, rgb(255 255 255 / 0.35) 50%, transparent 62%); }
+:root[data-theme] .glass { transform: none; transition: transform 0.45s var(--liquid-soft), background-color 0.3s, border-color 0.3s; --spec: 0; }
+:root[data-theme] .entry:hover, :root[data-theme] button.tile:hover, :root[data-theme] .setting:hover { transform: translateY(-2px); box-shadow: var(--g-shadow), inset 0 1px 0 var(--g-rim), inset 0 -1px 0 var(--g-rim-low); }
+:root[data-theme] .entry:active, :root[data-theme] button.tile:active, :root[data-theme] .setting:active { transform: scale(0.98); transition-duration: 0.12s; }
+
+/* blur budget: cards / controls get a flat fill instead of a live backdrop blur */
+:root[data-theme] .glass, :root[data-theme] .control, :root[data-theme] .seg, :root[data-theme] .notice, :root[data-theme] .btn.glass, :root[data-theme] .icon-btn,
+:root[data-theme] .dock-btn.on, :root[data-theme] .nav-item.on, :root[data-theme] .capsule, :root[data-theme] .backdrop {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-theme] .glass { background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.1), transparent 45%), rgb(var(--tint-dark) / 0.42); }
+:root[data-theme="light"] .glass { background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.3), transparent 45%), rgb(255 255 255 / 0.34); }
+/* the few surfaces that keep the real glass blur (one light blur each, no brightness filter) */
+:root[data-theme] .sidebar, :root[data-theme] .dock, :root[data-theme] .auth-card, :root[data-theme] .toast, :root[data-theme] .sheet {
+  -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+}
+:root[data-theme] .auth-card { background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.12), transparent 45%), var(--g-fill); }
+:root[data-theme="light"] .auth-card { background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.3), transparent 45%), rgb(255 255 255 / 0.3); }
+:root[data-theme] .backdrop { background: rgb(2 8 30 / 0.3); }
+:root[data-theme="light"] .backdrop { background: rgb(3 25 91 / 0.14); }
+
+/* background: static gradients, no blur filters, no blend modes, no grain overlay */
+.bg::before { animation: none !important; filter: none; mix-blend-mode: normal !important; opacity: 0.5; background: radial-gradient(60% 40% at 25% 20%, rgb(98 192 255 / 0.25), transparent 70%), radial-gradient(55% 40% at 80% 75%, rgb(25 81 252 / 0.3), transparent 70%); inset: 0; }
+.blob { filter: none !important; animation: none !important; }
+.grain { display: none; }
+.capsule { animation-duration: 60s; box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.6), inset 0 -16px 30px var(--cg), 0 18px 44px var(--cg); }
+:root[data-theme="light"] .capsule { box-shadow: inset 0 2px 0 #fff, inset 0 -16px 30px var(--cg), inset 0 0 20px rgb(255 255 255 / 0.45), 0 18px 44px rgb(55 129 252 / 0.26); }
+.capsule::before { filter: none; }
+.capsule::after { filter: none; }
+.btn.primary::after { animation: none !important; display: none; }
+
+/* sheets: transform + opacity only (no blur-in filter) */
+@keyframes liquid-modal-in { from { transform: translateY(20px) scale(0.92); opacity: 0; } }
+@keyframes liquid-modal-out { to { transform: translateY(8px) scale(0.96); opacity: 0; } }
+:root[data-theme] .sheet { animation-duration: 0.5s; }
+
+/* theme change: no global * transition storm */
+:root.theme-fade, :root.theme-fade *, :root.theme-fade *::before, :root.theme-fade *::after { transition: none !important; }
+:root[data-theme] .control:focus-within { transform: none; }
+:root[data-theme] .seg button.on, :root[data-theme] .dock-btn.on { transform: none; }
+
+/* phones / touch: drop the remaining blur on floating bars to a lighter value and skip hover lift */
+@media (hover: none) {
+  :root[data-theme] .sidebar, :root[data-theme] .dock, :root[data-theme] .toast, :root[data-theme] .sheet { -webkit-backdrop-filter: blur(12px) saturate(160%); backdrop-filter: blur(12px) saturate(160%); }
+  :root[data-theme] .entry:hover, :root[data-theme] button.tile:hover, :root[data-theme] .setting:hover { transform: none; }
+}
+/* row action buttons: no boxed backdrop behind them */
+:root[data-theme] .row-actions, :root[data-theme="light"] .row-actions { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* =========================================================================
+   LIGHT theme colour pass: sky-blue instead of dark navy, pure white water-glass cards (no green/cyan cast)
+   ========================================================================= */
+:root[data-theme="light"] {
+  /* logo + anything painted with the theme gradient turns sky blue */
+  --l1: #e3f4ff; --l2: #62c0ff; --l3: #3781fc; --tint: #cbe9fd;
+  --g-fill: rgb(255 255 255 / 0.5);
+  --g-tint: rgb(255 255 255 / 0);
+  --g-water: radial-gradient(120% 90% at 14% 0%, rgb(255 255 255 / 0.9), transparent 58%), linear-gradient(180deg, transparent 50%, rgb(255 255 255 / 0.4));
+  --g-shadow: 0 10px 34px rgb(55 129 252 / 0.2);
+}
+:root[data-theme="light"] .glass {
+  background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.1) 55%), rgb(255 255 255 / 0.42);
+  box-shadow: var(--g-shadow), inset 0 1px 0 #fff, inset 0 -1px 0 rgb(255 255 255 / 0.8), inset 0 0 20px rgb(255 255 255 / 0.55);
+}
+:root[data-theme="light"] .auth-card { background: var(--g-water), linear-gradient(150deg, rgb(255 255 255 / 0.4), rgb(255 255 255 / 0.1) 55%), rgb(255 255 255 / 0.4); }
+:root[data-theme="light"] .entry:hover, :root[data-theme="light"] button.tile:hover, :root[data-theme="light"] .setting:hover { background: var(--g-water), rgb(255 255 255 / 0.62); }
+:root[data-theme="light"] .sidebar, :root[data-theme="light"] .dock { background: linear-gradient(180deg, rgb(255 255 255 / 0.78), rgb(255 255 255 / 0.5)); }
+:root[data-theme="light"] .tile-ico, :root[data-theme="light"] .tile.good .tile-ico, :root[data-theme="light"] .tile.warn .tile-ico, :root[data-theme="light"] .s-ico, :root[data-theme="light"] .setting .s-ico {
+  background: rgb(255 255 255 / 0.85); color: #1951fc; box-shadow: inset 0 1px 0 #fff, 0 3px 10px rgb(55 129 252 / 0.18);
+}
+:root[data-theme="light"] .tile.warn .tile-ico { color: #b26a00; }
+:root[data-theme="light"] .control, :root[data-theme="light"] .seg, :root[data-theme="light"] .notice { background: rgb(255 255 255 / 0.62); }
+:root[data-theme="light"] .btn.glass, :root[data-theme="light"] .icon-btn, :root[data-theme="light"] .chip-toggle, :root[data-theme="light"] .cat { background: linear-gradient(160deg, rgb(255 255 255 / 0.8), rgb(255 255 255 / 0.45)); }
+
+/* sky-blue primary surfaces: buttons, "make a strong password", + button, add */
+:root[data-theme="light"] .btn.primary, :root[data-theme="light"] .promo, :root[data-theme="light"] .dock-add {
+  background: radial-gradient(120% 90% at 50% 0%, rgb(255 255 255 / 0.65), transparent 58%), linear-gradient(180deg, #bfe6ff, #7cccff 48%, #4a97fd);
+  border: 1px solid rgb(255 255 255 / 0.9); color: #03195b;
+  box-shadow: 0 8px 22px rgb(55 129 252 / 0.32), inset 0 1.5px 0 #fff, inset 0 -8px 14px rgb(55 129 252 / 0.3);
+}
+:root[data-theme="light"] .promo .sub { color: rgb(3 25 91 / 0.72); }
+:root[data-theme="light"] .promo-ico { background: rgb(255 255 255 / 0.6); border-color: rgb(255 255 255 / 0.9); color: #1951fc; }
+:root[data-theme="light"] .btn.primary .spin { border-color: rgb(3 25 91 / 0.25); border-top-color: #03195b; }
+:root[data-theme="light"] .avatar.plus { background: rgb(255 255 255 / 0.7); color: #1951fc; }
+
+/* =========================================================================
+   SPEED pass: shorter, snappier motion everywhere (feel instant, still smooth)
+   ========================================================================= */
+:root { --liquid: cubic-bezier(0.22, 1, 0.36, 1); --liquid-soft: cubic-bezier(0.22, 1, 0.36, 1); }
+:root[data-theme] .glass, :root[data-theme] .entry, :root[data-theme] .tile, :root[data-theme] .setting { transition-duration: 0.22s, 0.2s, 0.2s, 0.22s, 0.2s; }
+:root[data-theme] .btn, :root[data-theme] .icon-btn, :root[data-theme] .dock-btn, :root[data-theme] .nav-item,
+:root[data-theme] .chip-toggle, :root[data-theme] .cat, :root[data-theme] .swatch, :root[data-theme] .choice, :root[data-theme] .seg button { transition-duration: 0.2s; }
+:root[data-theme] .btn:active:not(:disabled), :root[data-theme] .icon-btn:active, :root[data-theme] .dock-btn:active, :root[data-theme] .chip-toggle:active { transition-duration: 0.06s; }
+:root[data-theme] .switch .track::after { transition: transform 0.25s var(--liquid), width 0.15s; }
+:root[data-theme] .switch .track { transition-duration: 0.2s; }
+:root[data-theme] .sheet { animation-duration: 0.3s; }
+:root[data-theme] .backdrop { animation-duration: 0.2s; }
+:root[data-theme] .leaving .sheet { animation-duration: 0.18s; }
+:root[data-theme] .leaving .backdrop { animation-duration: 0.18s; }
+:root[data-theme] .toast { transition: transform 0.3s var(--liquid), opacity 0.2s; }
+:root[data-theme] .entries.enter .entry { animation: liquid-drop 0.3s var(--liquid) calc(min(var(--i), 8) * 18ms) both; }
+@keyframes liquid-drop { from { opacity: 0; transform: translateY(10px); } }
+.ripple, .ripple::after { animation-duration: 0.6s; }
+.screen > *, .card { animation-duration: 0.3s; }
+.control { transition-duration: 0.15s; }
+.rise { animation-duration: 0.35s; animation-delay: calc(var(--d, 0ms) * 0.4); }
+.dock { animation-duration: 0.35s; animation-delay: 0.1s; }
+.entries.enter .entry { animation-duration: 0.3s; }
