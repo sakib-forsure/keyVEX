@@ -1,0 +1,44 @@
+:root {
+  /* palette — taken from the reference artwork */
+  --ok: #5bd98c;
+  --warn: #ffc24b;
+  --danger: #ff6b5e;
+
+
+  --font-display: "Manrope Variable", "Manrope", system-ui, sans-serif;
+  --font-body: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+  --r-pill: 999px;
+  --r-card: 24px;
+  --col: 520px;
+  --side: 280px;
+  --wide: 1180px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- themes: set on <html data-theme="dark|light"> (Dark is default) ----------
+   Blue glass palette: #03195b  #0b2cb1  #1951fc  #3781fc  #62c0ff  #cbe9fd                       */
+:root, :root[data-theme="dark"] {
+  --ink: #020a26; --text: #fff; --on-accent: #fff; --focus: #fff;
+  --muted: rgba(226, 238, 255, 0.9); --faint: rgba(206, 224, 255, 0.76); --line: rgba(190, 215, 255, 0.2);
+  --amber: #0b2cb1; --orange: #072391; --ember: #051a6e; --wine: #03123f;
+  --a1: #3781fc; --a2: #1951fc; --glow: 55 129 252; --on-light: #03195b;
+  --l1: #62c0ff; --l2: #3781fc; --l3: #0b2cb1; --tint: #cbe9fd;
+  --blob1: #3781fc; --blob2: #1951fc; --tint-dark: 3 14 52; --sheet-top: 11 44 177; --sheet-bot: 2 10 38;
+  --glass-hi: 255 255 255; --field: 2 10 40; --pill-bg: 6 10 28;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --ink: #9fd3ff; --text: #03195b; --on-accent: #fff; --focus: #0b2cb1;
+  --muted: rgba(3, 25, 91, 0.82); --faint: rgba(3, 25, 91, 0.66); --line: rgba(11, 44, 177, 0.2);
+  --amber: #f4fbff; --orange: #cbe9fd; --ember: #9fd3ff; --wine: #62a8ff;
+  --a1: #3781fc; --a2: #1951fc; --glow: 25 81 252; --on-light: #fff;
+  --l1: #62c0ff; --l2: #3781fc; --l3: #0b2cb1; --tint: #03195b;
+  --blob1: #cbe9fd; --blob2: #3781fc; --tint-dark: 203 233 253; --sheet-top: 214 238 255; --sheet-bot: 160 208 255; 
+  --glass-hi: 255 255 255; --field: 255 255 255; --pill-bg: 255 255 255;
+  color-scheme: light;
+}
